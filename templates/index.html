@@ -12,18 +12,34 @@
         <header class="text-center mb-12">
             <span class="bg-indigo-500/10 text-indigo-400 text-xs font-semibold px-3 py-1 rounded-full uppercase tracking-wider border border-indigo-500/20">Micro-SaaS Market Scanner</span>
             <h1 class="text-4xl font-extrabold tracking-tight mt-3 mb-3 text-white">FBA Rule-of-Threes Analyzer</h1>
-            <p class="text-slate-400 max-w-2xl mx-auto text-lg">Instantly filter supplier catalogs or Keepa CSV exports to find high-margin, low-competition Amazon products.</p>
+            <p class="text-slate-400 max-w-2xl mx-auto text-lg">Run 1-click automated niche scans or upload supplier exports to find high-margin, low-competition Amazon products.</p>
         </header>
 
-        <!-- Upload Card -->
-        <div class="bg-slate-800 border border-slate-700 rounded-2xl p-8 shadow-xl mb-10">
-            <h2 class="text-xl font-bold mb-4 text-white flex items-center gap-2">📊 Upload Product Export (CSV / Excel)</h2>
-            <form id="uploadForm" class="flex flex-col md:flex-row gap-4 items-center">
-                <input type="file" id="fileInput" name="file" accept=".csv, .xlsx, .xls" required class="block w-full text-sm text-slate-300 file:mr-4 file:py-3 file:px-6 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-indigo-600 file:text-white hover:file:bg-indigo-700 cursor:pointer bg-slate-900/50 border border-slate-700 rounded-xl p-2">
-                <button type="submit" id="scanBtn" class="w-full md:w-auto px-8 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl shadow-lg transition duration-200 whitespace-nowrap cursor-pointer">Run Scan</button>
-            </form>
-            <div id="statusMsg" class="mt-4 text-sm font-medium"></div>
+        <!-- Action Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-10">
+            <!-- Option 1: Auto Scan -->
+            <div class="bg-slate-800 border border-slate-700 rounded-2xl p-8 shadow-xl flex flex-col justify-between">
+                <div>
+                    <h2 class="text-xl font-bold mb-2 text-white flex items-center gap-2">🚀 Automated Niche Explorer</h2>
+                    <p class="text-slate-400 text-sm mb-6">Instantly scan trending supplier directories and top categories with a single click — no file upload required.</p>
+                </div>
+                <button onclick="runAutoScan()" id="autoScanBtn" class="w-full py-3.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl shadow-lg transition duration-200 cursor-pointer">Run Automated Niche Scan</button>
+            </div>
+
+            <!-- Option 2: Upload Card -->
+            <div class="bg-slate-800 border border-slate-700 rounded-2xl p-8 shadow-xl flex flex-col justify-between">
+                <div>
+                    <h2 class="text-xl font-bold mb-2 text-white flex items-center gap-2">📊 Upload Product Export</h2>
+                    <p class="text-slate-400 text-sm mb-4">Analyze your own Keepa or wholesale catalog export (CSV or Excel).</p>
+                </div>
+                <form id="uploadForm" class="flex flex-col gap-3">
+                    <input type="file" id="fileInput" name="file" accept=".csv, .xlsx, .xls" required class="block w-full text-xs text-slate-300 file:mr-2 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-slate-700 file:text-white hover:file:bg-slate-600 cursor-pointer bg-slate-900/50 border border-slate-700 rounded-xl p-2">
+                    <button type="submit" id="scanBtn" class="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl shadow-lg transition duration-200 cursor-pointer">Analyze Uploaded File</button>
+                </form>
+            </div>
         </div>
+
+        <div id="statusMsg" class="text-center mb-6 text-sm font-medium"></div>
 
         <!-- Results Section -->
         <div id="resultsSection" class="hidden">
@@ -64,12 +80,44 @@
     </div>
 
     <script>
+        async function runAutoScan() {
+            const autoScanBtn = document.getElementById('autoScanBtn');
+            const statusMsg = document.getElementById('statusMsg');
+            const resultsSection = document.getElementById('resultsSection');
+
+            autoScanBtn.disabled = true;
+            autoScanBtn.textContent = 'Scanning Trending Niches...';
+            statusMsg.textContent = 'Crawling automated market feeds and filtering via Rule of Threes...';
+            statusMsg.className = 'text-center mb-6 text-sm font-medium text-indigo-400';
+
+            try {
+                const res = await fetch('/api/auto-scan', { method: 'POST' });
+                const data = await res.json();
+
+                autoScanBtn.disabled = false;
+                autoScanBtn.textContent = 'Run Automated Niche Scan';
+
+                if (data.success) {
+                    statusMsg.textContent = `Automated scan complete! Found ${data.qualified_count} top opportunities.`;
+                    statusMsg.className = 'text-center mb-6 text-sm font-medium text-emerald-400';
+                    renderResults(data);
+                } else {
+                    statusMsg.textContent = 'Error: ' + data.error;
+                    statusMsg.className = 'text-center mb-6 text-sm font-medium text-rose-400';
+                }
+            } catch (err) {
+                autoScanBtn.disabled = false;
+                autoScanBtn.textContent = 'Run Automated Niche Scan';
+                statusMsg.textContent = 'Network error during automated scan.';
+                statusMsg.className = 'text-center mb-6 text-sm font-medium text-rose-400';
+            }
+        }
+
         document.getElementById('uploadForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const fileInput = document.getElementById('fileInput');
             const scanBtn = document.getElementById('scanBtn');
             const statusMsg = document.getElementById('statusMsg');
-            const resultsSection = document.getElementById('resultsSection');
 
             if (!fileInput.files[0]) return;
 
@@ -77,57 +125,60 @@
             formData.append('file', fileInput.files[0]);
 
             scanBtn.disabled = true;
-            scanBtn.textContent = 'Analyzing...';
-            statusMsg.textContent = 'Processing catalog against Rule of Threes algorithm...';
-            statusMsg.className = 'mt-4 text-sm font-medium text-indigo-400';
+            scanBtn.textContent = 'Analyzing File...';
+            statusMsg.textContent = 'Processing uploaded file against Rule of Threes algorithm...';
+            statusMsg.className = 'text-center mb-6 text-sm font-medium text-indigo-400';
 
             try {
                 const res = await fetch('/api/scan', { method: 'POST', body: formData });
                 const data = await res.json();
 
                 scanBtn.disabled = false;
-                scanBtn.textContent = 'Run Scan';
+                scanBtn.textContent = 'Analyze Uploaded File';
 
                 if (data.success) {
-                    statusMsg.textContent = `Scan complete! Found ${data.qualified_count} high-potential products.`;
-                    statusMsg.className = 'mt-4 text-sm font-medium text-emerald-400';
-
-                    document.getElementById('statTotal').textContent = data.total_scanned;
-                    document.getElementById('statQualified').textContent = data.qualified_count;
-
-                    const tbody = document.getElementById('resultsTableBody');
-                    tbody.innerHTML = '';
-
-                    data.results.forEach(item => {
-                        const row = document.createElement('tr');
-                        row.className = item.qualified ? 'bg-emerald-950/20 hover:bg-emerald-950/40' : 'hover:bg-slate-700/30';
-                        row.innerHTML = `
-                            <td class="py-4 px-6 font-medium text-white">${item.product}</td>
-                            <td class="py-4 px-6">$${item.price.toFixed(2)}</td>
-                            <td class="py-4 px-6 font-semibold">${item.est_sales}</td>
-                            <td class="py-4 px-6">${item.reviews}</td>
-                            <td class="py-4 px-6 font-bold text-indigo-300">$${item.est_revenue.toLocaleString()}</td>
-                            <td class="py-4 px-6">
-                                <span class="px-3 py-1 rounded-full text-xs font-bold ${item.qualified ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-slate-700 text-slate-400'}">
-                                    ${item.score}
-                                </span>
-                            </td>
-                        `;
-                        tbody.appendChild(row);
-                    });
-
-                    resultsSection.classList.remove('hidden');
+                    statusMsg.textContent = `File analysis complete! Found ${data.qualified_count} qualified products.`;
+                    statusMsg.className = 'text-center mb-6 text-sm font-medium text-emerald-400';
+                    renderResults(data);
                 } else {
                     statusMsg.textContent = 'Error: ' + data.error;
-                    statusMsg.className = 'mt-4 text-sm font-medium text-rose-400';
+                    statusMsg.className = 'text-center mb-6 text-sm font-medium text-rose-400';
                 }
             } catch (err) {
                 scanBtn.disabled = false;
-                scanBtn.textContent = 'Run Scan';
+                scanBtn.textContent = 'Analyze Uploaded File';
                 statusMsg.textContent = 'Network or server error during scan.';
-                statusMsg.className = 'mt-4 text-sm font-medium text-rose-400';
+                statusMsg.className = 'text-center mb-6 text-sm font-medium text-rose-400';
             }
         });
+
+        function renderResults(data) {
+            document.getElementById('statTotal').textContent = data.total_scanned;
+            document.getElementById('statQualified').textContent = data.qualified_count;
+
+            const tbody = document.getElementById('resultsTableBody');
+            tbody.innerHTML = '';
+
+            data.results.forEach(item => {
+                const row = document.createElement('tr');
+                row.className = item.qualified ? 'bg-emerald-950/20 hover:bg-emerald-950/40' : 'hover:bg-slate-700/30';
+                row.innerHTML = `
+                    <td class="py-4 px-6 font-medium text-white">${item.product}</td>
+                    <td class="py-4 px-6">$${item.price.toFixed(2)}</td>
+                    <td class="py-4 px-6 font-semibold">${item.est_sales}</td>
+                    <td class="py-4 px-6">${item.reviews}</td>
+                    <td class="py-4 px-6 font-bold text-indigo-300">$${item.est_revenue.toLocaleString()}</td>
+                    <td class="py-4 px-6">
+                        <span class="px-3 py-1 rounded-full text-xs font-bold ${item.qualified ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-slate-700 text-slate-400'}">
+                            ${item.score}
+                        </span>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+
+            document.getElementById('resultsSection').classList.remove('hidden');
+        }
     </script>
 </body>
 </html>
